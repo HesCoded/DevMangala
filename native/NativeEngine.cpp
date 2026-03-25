@@ -6,7 +6,6 @@
 #include <fstream>
 #include <unordered_map>
 #include <cstdint>
-#include <omp.h> 
 
 using namespace std;
 
@@ -42,46 +41,9 @@ void loadTablebase() {
     cout << "--- Tablebase loaded: " << size << " positions were added to RAM ---" << endl;
 }
 
-struct TTEntry {
-    uint64_t hash = 0;
-    int depth = -1;
-    int score = 0;
-    int flag = -1;
-    int bestMove = -1;
-};
-
-const int TABLE_SIZE = 1 << 22; 
-TTEntry tt[TABLE_SIZE];
-uint64_t zobristTable[14][49];
-uint64_t zobristSideToMove;
-
+// Killer move heuristic: stores best moves at each depth
+int killerMoves[64][2]; // [depth][0 or 1]
 long long nodeCount = 0;
-long long tb_hits = 0; 
-long long total_lookups = 0;
-long long tt_hits = 0;
-
-void initZobrist() {
-    static bool initialized = false;
-    if (initialized) return;
-    srand(12345);
-    for (int i = 0; i < 14; i++) {
-        for (int j = 0; j < 49; j++) {
-            zobristTable[i][j] = ((uint64_t)rand() << 32) | (uint64_t)rand();
-        }
-    }
-    zobristSideToMove = ((uint64_t)rand() << 32) | (uint64_t)rand();
-    initialized = true;
-}
-
-uint64_t calcHash(const uint8_t board[14], bool isTopPlayer) {
-    uint64_t h = 0;
-    for (int i = 0; i < 14; i++) {
-        uint8_t stones = board[i];
-        if (stones > 0 && stones <= 48) h ^= zobristTable[i][stones];
-    }
-    if (isTopPlayer) h ^= zobristSideToMove;
-    return h;
-}
 
 bool makeMove(uint8_t board[14], int index, bool isTopPlayer) {
     uint8_t stones = board[index];
@@ -129,21 +91,30 @@ bool makeMove(uint8_t board[14], int index, bool isTopPlayer) {
 }
 
 int checkGameState(uint8_t board[14]) {
-    bool isBottomEmpty = true;
-    for (int i = 0; i < 6; i++) { if (board[i] > 0) { isBottomEmpty = false; break; } }
-    bool isTopEmpty = true;
-    for (int i = 7; i < 13; i++) { if (board[i] > 0) { isTopEmpty = false; break; } }
+    bool bottomEmpty = true;
+    for (int i = 0; i < 6; i++) { if (board[i] > 0) { bottomEmpty = false; break; } }
 
-    if (isBottomEmpty || isTopEmpty) {
+    if (bottomEmpty) {
         int bScore = board[6];
         int tScore = board[13];
-        if (isBottomEmpty) { for (int i = 7; i < 13; i++) bScore += board[i]; }
-        else { for (int i = 0; i < 6; i++) tScore += board[i]; }
-
-        if (bScore > tScore) return 1; // Bottom wins
-        if (tScore > bScore) return 2; // Top wins
-        return 3; // Draw
+        for (int i = 7; i < 13; i++) tScore += board[i];
+        if (bScore > tScore) return 1;
+        if (tScore > bScore) return 2;
+        return 3;
     }
+
+    bool topEmpty = true;
+    for (int i = 7; i < 13; i++) { if (board[i] > 0) { topEmpty = false; break; } }
+
+    if (topEmpty) {
+        int bScore = board[6];
+        int tScore = board[13];
+        for (int i = 0; i < 6; i++) bScore += board[i];
+        if (bScore > tScore) return 1;
+        if (tScore > bScore) return 2;
+        return 3;
+    }
+
     return 0;
 }
 
@@ -165,15 +136,14 @@ int evaluate(uint8_t board[14], int gameState) {
     return bScore - tScore;
 }
 
-// This function could be modified to prioritize moves that result in pieces being captured or causes an extra move; I'm keeping it simple for now.
-void sortPits(const uint8_t board[14], int resultPits[6], bool isTopPlayer, int ttBestMove) {
+void sortPits(const uint8_t board[14], int resultPits[6], bool isTopPlayer, int depth) {
     int offset = isTopPlayer ? 7 : 0;
     int scores[6];
     for (int i = 0; i < 6; i++) {
         int idx = offset + i;
         resultPits[i] = idx;
         if (board[idx] == 0) scores[i] = -1000;
-        else if (idx == ttBestMove) scores[i] = 1000;
+        else if (idx == killerMoves[depth][0] || idx == killerMoves[depth][1]) scores[i] = 5000;
         else scores[i] = board[idx];
     }
     for (int i = 0; i < 5; i++) {
@@ -187,90 +157,87 @@ void sortPits(const uint8_t board[14], int resultPits[6], bool isTopPlayer, int 
 }
 
 int minimax(uint8_t board[14], int depth, bool isTopPlayer, int alpha, int beta) {
-    // Tablebase Check
-    int active_stones = 0;
-    for (int i = 0; i < 14; i++) if(i != 6 && i != 13) active_stones += board[i];
+    int state = checkGameState(board);
+    if (state != 0) return evaluate(board, state);
 
+    int active_stones = 48 - board[6] - board[13];
     if (active_stones <= 15 && tablebase_loaded) {
         uint8_t tb_pits[12];
         for (int i = 0; i < 6; i++) {
             tb_pits[i] = board[i];
-            tb_pits[i + 6] = board[i + 7];
+            tb_pits[i+6] = board[i+7];
         }
+
         uint64_t tb_key = encode_tb(tb_pits, isTopPlayer);
-        if (tablebase.count(tb_key)) {
-            #pragma omp atomic
-            tb_hits++;
-            int future_diff = tablebase[tb_key]; // Bottom - Top
-            int final_diff = (board[6] - board[13]) + future_diff;
-            return (final_diff > 0) ? (10000 + final_diff) : (final_diff < 0 ? -10000 + final_diff : 0); // "return final_diff;" is also possible.
+        auto it = tablebase.find(tb_key);
+        if (it != tablebase.end()) {
+            return it->second;
         }
     }
 
-    // TT Check
-    uint64_t hash = calcHash(board, isTopPlayer);
-    int ttIndex = hash & (TABLE_SIZE - 1);
-    #pragma omp atomic
-    total_lookups++;
-    if (tt[ttIndex].hash == hash && tt[ttIndex].depth >= depth) {
-        #pragma omp atomic
-        tt_hits++;
-        if (tt[ttIndex].flag == 0) return tt[ttIndex].score;
-        if (tt[ttIndex].flag == 1 && tt[ttIndex].score <= alpha) return tt[ttIndex].score;
-        if (tt[ttIndex].flag == 2 && tt[ttIndex].score >= beta) return tt[ttIndex].score;
-    }
+    if (depth <= 0) return evaluate(board, 0);
 
-    int state = checkGameState(board);
-    if (depth <= 0 || state != 0) return evaluate(board, state);
-
-    #pragma omp atomic
     nodeCount++;
-
-    int bestMoveAtNode = -1;
     int sortedPits[6];
-    sortPits(board, sortedPits, isTopPlayer, (tt[ttIndex].hash == hash) ? tt[ttIndex].bestMove : -1);
+    sortPits(board, sortedPits, isTopPlayer, depth);
 
-    if (!isTopPlayer) { // Maximizing (Bottom)
+    if (!isTopPlayer) {
         int maxEval = -999999;
         for (int i = 0; i < 6; i++) {
             int pit = sortedPits[i];
             if (board[pit] == 0) continue;
+
             uint8_t nextBoard[14];
             copy(board, board + 14, nextBoard);
             bool extra = makeMove(nextBoard, pit, false);
+
             int eval = minimax(nextBoard, depth - 1, extra ? false : true, alpha, beta);
-            if (eval > maxEval) { maxEval = eval; bestMoveAtNode = pit; }
+            if (eval > maxEval) { maxEval = eval; }
             alpha = max(alpha, eval);
-            if (beta <= alpha) break;
+            if (beta <= alpha) {
+                if (killerMoves[depth][0] != pit) {
+                    killerMoves[depth][1] = killerMoves[depth][0];
+                    killerMoves[depth][0] = pit;
+                }
+                break;
+            }
         }
-        int flag = (maxEval <= alpha) ? 1 : (maxEval >= beta) ? 2 : 0;
-        tt[ttIndex] = {hash, depth, maxEval, flag, bestMoveAtNode};
         return maxEval;
-    } else { // Minimizing (Top)
+    } else {
         int minEval = 999999;
         for (int i = 0; i < 6; i++) {
             int pit = sortedPits[i];
             if (board[pit] == 0) continue;
+
             uint8_t nextBoard[14];
             copy(board, board + 14, nextBoard);
             bool extra = makeMove(nextBoard, pit, true);
+
             int eval = minimax(nextBoard, depth - 1, extra ? true : false, alpha, beta);
-            if (eval < minEval) { minEval = eval; bestMoveAtNode = pit; }
+            if (eval < minEval) { minEval = eval; }
             beta = min(beta, eval);
-            if (beta <= alpha) break;
+            if (beta <= alpha) {
+                if (killerMoves[depth][0] != pit) {
+                    killerMoves[depth][1] = killerMoves[depth][0];
+                    killerMoves[depth][0] = pit;
+                }
+                break;
+            }
         }
-        int flag = (minEval <= alpha) ? 1 : (minEval >= beta) ? 2 : 0;
-        tt[ttIndex] = {hash, depth, minEval, flag, bestMoveAtNode};
         return minEval;
     }
 }
 
 extern "C" JNIEXPORT jint JNICALL
 Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject obj, jintArray jBoard, jint targetDepth, jboolean isTopPlayer) {
-    loadTablebase(); 
-    initZobrist();
-    for (int i = 0; i < TABLE_SIZE; i++) tt[i].hash = 0; 
-    nodeCount = 0; tb_hits = 0;
+    loadTablebase();
+
+    for (int i = 0; i < 64; i++) {
+        killerMoves[i][0] = -1;
+        killerMoves[i][1] = -1;
+    }
+
+    nodeCount = 0;
 
     jint *cBoard = env->GetIntArrayElements(jBoard, NULL);
     uint8_t startBoard[14];
@@ -283,7 +250,8 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
         int bestScore = isTopPlayer ? 999999 : -999999;
         int moveThisDepth = -1;
 
-        #pragma omp parallel for schedule(dynamic)
+        int alpha = -999999;
+        int beta = 999999;
         for (int i = 0; i < 6; i++) {
             int pit = (isTopPlayer ? 7 : 0) + i;
             if (startBoard[pit] == 0) continue;
@@ -291,22 +259,22 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
             uint8_t nextBoard[14];
             copy(startBoard, startBoard + 14, nextBoard);
             bool extra = makeMove(nextBoard, pit, isTopPlayer);
-            int score = minimax(nextBoard, d - 1, extra ? isTopPlayer : !isTopPlayer, -999999, 999999);
 
-            #pragma omp critical
-            {
-                if (isTopPlayer) {
-                    if (score < bestScore) { bestScore = score; moveThisDepth = pit; }
-                } else {
-                    if (score > bestScore) { bestScore = score; moveThisDepth = pit; }
-                }
+            int score = minimax(nextBoard, d - 1, extra ? isTopPlayer : !isTopPlayer, alpha, beta);
+
+            if (isTopPlayer) {
+                if (score < bestScore) { bestScore = score; moveThisDepth = pit; }
+                beta = min(beta, bestScore);
+            } else {
+                if (score > bestScore) { bestScore = score; moveThisDepth = pit; }
+                alpha = max(alpha, bestScore);
             }
         }
         overallBestMove = moveThisDepth;
         auto end = chrono::high_resolution_clock::now();
-        cout << "Depth: " << d << " | Best Pit: " << overallBestMove << " | Score: " << bestScore 
-             << " | Nodes: " << nodeCount << " | Time: " << chrono::duration<double>(end-start).count() << "s" 
-             << " | Zobrist Rate: " << ((float)tt_hits / total_lookups) * 100 << "%" << " | TT-Hits: " << tt_hits << endl;
+        cout << "Depth: " << d << " | Best Pit: " << overallBestMove << " | Score: " << bestScore
+             << " | Nodes: " << nodeCount << " | Time: " << chrono::duration<double>(end-start).count() << "s"
+             << endl;
     }
     return overallBestMove;
 }
