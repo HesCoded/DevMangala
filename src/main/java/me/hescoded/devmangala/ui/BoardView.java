@@ -28,6 +28,7 @@ public class BoardView {
     public Label bottomLabel;
     public BorderPane addBorderPane() {
         BorderPane borderPane = new BorderPane();
+        borderPane.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         buttonMap = new HashMap<>();
 
         HBox hbox = new HBox();
@@ -153,9 +154,11 @@ public class BoardView {
         btnRules.setOnAction(actionEvent -> {/*TODO*/});
 
         PitButton storeLeft = new PitButton(13, true);
+        storeLeft.getButton().getStyleClass().add("store-button");
         borderPane.setLeft(storeLeft.getButton());
         buttonMap.put(13, storeLeft);
         PitButton storeRight = new PitButton(6, true);
+        storeRight.getButton().getStyleClass().add("store-button");
         borderPane.setRight(storeRight.getButton());
         buttonMap.put(6, storeRight);
 
@@ -174,28 +177,37 @@ public class BoardView {
                 houseButton = new PitButton(houseId, false);
                 gridPane.add(houseButton.getButton(), 11 - i, 0);
             }
+            houseButton.getButton().getStyleClass().add("pit-button");
             buttonMap.put(houseId, houseButton);
         }
         borderPane.setCenter(gridPane);
 
         bottomLabel = new Label("HesCoded tarafından yapılmıştır.");
+        bottomLabel.getStyleClass().add("bottom-label");
         bottomLabel.setPadding(new Insets(0, 0, 0, 20));
         borderPane.setBottom(bottomLabel);
 
         return borderPane;
     }
 
-    public void enablePlayerButtons(PlayerSide side) {
+    public void enablePlayerButtons(PlayerSide side, List<Integer> zeroButtons) {
         buttonMap.forEach((id, pitButton) -> {
-            pitButton.getButton().setDisable(true);
-            pitButton.getButton().setStyle("-fx-background-color: #5d6d7e; -fx-opacity: 1.0; -fx-border-color: #000000; -fx-text-fill: #000000");
-            if (side == PlayerSide.BOTTOM && id < 6) {
-                pitButton.getButton().setStyle("-fx-background-color: #ffffff; -fx-opacity: 1.0; -fx-border-color: #000000; -fx-text-fill: #000000");
-                pitButton.getButton().setDisable(false);
-            }
-            if (side == PlayerSide.TOP && id > 6 && id != 13) {
-                pitButton.getButton().setStyle("-fx-background-color: #ffffff; -fx-opacity: 1.0; -fx-border-color: #000000; -fx-text-fill: #000000");
-                pitButton.getButton().setDisable(false);
+            Button btn = pitButton.getButton();
+            btn.setDisable(true);
+            btn.getStyleClass().remove("animated");
+
+            if (zeroButtons != null) {
+                if (!zeroButtons.contains(id)) {
+                    boolean isBottomTurn = (side == PlayerSide.BOTTOM && id < 6);
+                    boolean isTopTurn = (side == PlayerSide.TOP && id > 6 && id != 13);
+
+                    if (isBottomTurn || isTopTurn) {
+                        btn.setDisable(false);
+                        if (!btn.getStyleClass().contains("animated")) {
+                            btn.getStyleClass().add("animated");
+                        }
+                    }
+                }
             }
         });
     }

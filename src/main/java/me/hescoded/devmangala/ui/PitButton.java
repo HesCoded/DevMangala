@@ -14,15 +14,10 @@ public class PitButton {
         } else {
             button.setPrefSize(100, 100);
         }
-        button.setStyle("-fx-background-color: #5d6d7e; -fx-opacity: 1.0; -fx-border-color: #000000; -fx-text-fill: #000000");
         button.setDisable(true);
     }
 
     public Button getButton() {
         return button;
-    }
-
-    public int getPitId() {
-        return pitId;
     }
 }

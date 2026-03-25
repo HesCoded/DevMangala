@@ -9,6 +9,9 @@ import me.hescoded.devmangala.ui.BoardView;
 import me.hescoded.devmangala.variables.GameResult;
 import me.hescoded.devmangala.variables.PlayerSide;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class GameControllerPvC {
     private final Player p1, p2;
     private int[] board;
@@ -32,11 +35,12 @@ public class GameControllerPvC {
         view.buttonMap.forEach((id, pitButton) -> {
             pitButton.getButton().setText(String.valueOf(board[id]));
         });
-        view.enablePlayerButtons(currentPlayer.getSide());
+        view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
     }
 
     public void onPitClicked(int pitId) {
         if (currentPlayer.getSide() != PlayerSide.BOTTOM || isAnimationPlaying || board[pitId] == 0) return;
+        view.enablePlayerButtons(null, null);
         MoveResult move = moveHandler.move(board, pitId, currentPlayer.getSide());
         executeMoveSequence(move);
     }
@@ -64,6 +68,7 @@ public class GameControllerPvC {
                 makeComputerMove();
             } else {
                 view.bottomLabel.setText("Your turn again.");
+                view.enablePlayerButtons(PlayerSide.BOTTOM, getZeroButtons());
             }
         } else {
             currentPlayer = (currentPlayer == p1) ? p2 : p1;
@@ -72,14 +77,24 @@ public class GameControllerPvC {
                 makeComputerMove();
             } else {
                 view.bottomLabel.setText("Your turn.");
+                view.enablePlayerButtons(PlayerSide.BOTTOM, getZeroButtons());
             }
         }
+    }
+
+    private List<Integer> getZeroButtons() {
+        List<Integer> zeroButtons = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            if (board[i] == 0) zeroButtons.add(i);
+            if (board[i+7] == 0) zeroButtons.add(i+7);
+        }
+        return zeroButtons;
     }
 
     public void announceWinner() {
         isAnimationPlaying = false;
         stopThinkingAnimation();
-        view.enablePlayerButtons(null);
+        view.enablePlayerButtons(null, null);
         collectRemainingStones(board);
         view.buttonMap.forEach((id, pitButton) -> {
             pitButton.getButton().setText(String.valueOf(board[id]));

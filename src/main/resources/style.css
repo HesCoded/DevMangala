@@ -1,0 +1,33 @@
+.root {
+    -fx-background-color: #074254;
+}
+
+.button.pit-button, .button.store-button {
+    -fx-font-weight: bold;
+    -fx-font-size: 20px;
+    -fx-text-fill: white;
+    -fx-background-color: #0e89af;
+    -fx-background-insets: 0;
+    -fx-background-radius: 0;
+    -fx-border-color: #000000;
+    -fx-border-width: 1;
+    -fx-border-radius: 0;
+}
+
+.button.pit-button.animated:hover {
+    -fx-background-color: #7AB2B2;
+    -fx-border-color: #8b7005;
+    -fx-cursor: hand;
+    -fx-transition: 0.3s;
+}
+
+.button.pit-button:hover {
+    -fx-background-color: #088395;
+    -fx-cursor: default;
+}
+
+.bottom-label {
+    -fx-text-fill: #EBF4F6;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+}
