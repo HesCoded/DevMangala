@@ -10,19 +10,22 @@ import me.hescoded.devmangala.variables.GameResult;
 import me.hescoded.devmangala.variables.PlayerSide;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class GameControllerPvC {
+public class AnalysisMode {
     private final Player p1, p2;
     private int[] board;
     private Player currentPlayer;
     private BoardView view;
     private MoveHandler moveHandler;
     private boolean isAnimationPlaying = false;
+    private boolean isEngineThinking = false;
     private Timeline thinkingTimeline;
     private NativeEngine nativeEngine;
 
-    public GameControllerPvC(Player p1, Player p2, PlayerSide firstPlayer, BoardView view) {
+    public AnalysisMode(Player p1, Player p2, PlayerSide firstPlayer, BoardView view) {
         this.p1 = p1;
         this.p2 = p2;
         this.view = view;
@@ -35,15 +38,16 @@ public class GameControllerPvC {
         view.buttonMap.forEach((id, pitButton) -> {
             pitButton.getButton().setText(String.valueOf(board[id]));
         });
-        if (firstPlayer == PlayerSide.BOTTOM) {
-            view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
-        } else {
-            makeComputerMove();
-        }
+        view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+        startAnalysisForCurrentTurn();
     }
 
     public void onPitClicked(int pitId) {
-        if (currentPlayer.getSide() != PlayerSide.BOTTOM || isAnimationPlaying || board[pitId] == 0) return;
+        if (isAnimationPlaying) return;
+        if (currentPlayer.getSide() == PlayerSide.BOTTOM && pitId > 5) return;
+        if (currentPlayer.getSide() == PlayerSide.TOP && pitId < 7) return;
+        if (board[pitId] == 0) return;
+
         view.enablePlayerButtons(null, null);
         MoveResult move = moveHandler.move(board, pitId, currentPlayer.getSide());
         executeMoveSequence(move);
@@ -68,22 +72,20 @@ public class GameControllerPvC {
 
         if (move.isGivesExtraTurn()) {
             if (currentPlayer == p2) {
-                startThinkingAnimation();
-                makeComputerMove();
+                view.bottomLabel.setText("Top player's turn.");
             } else {
-                view.bottomLabel.setText("Your turn again.");
-                view.enablePlayerButtons(PlayerSide.BOTTOM, getZeroButtons());
+                view.bottomLabel.setText("Bottom player's turn.");
             }
         } else {
             currentPlayer = (currentPlayer == p1) ? p2 : p1;
             if (currentPlayer == p2) {
-                startThinkingAnimation();
-                makeComputerMove();
+                view.bottomLabel.setText("Top player's turn.");
             } else {
-                view.bottomLabel.setText("Your turn.");
-                view.enablePlayerButtons(PlayerSide.BOTTOM, getZeroButtons());
+                view.bottomLabel.setText("Bottom player's turn.");
             }
         }
+        view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+        startAnalysisForCurrentTurn();
     }
 
     private List<Integer> getZeroButtons() {
@@ -97,7 +99,6 @@ public class GameControllerPvC {
 
     public void announceWinner() {
         isAnimationPlaying = false;
-        stopThinkingAnimation();
         view.enablePlayerButtons(null, null);
         collectRemainingStones(board);
         view.buttonMap.forEach((id, pitButton) -> {
@@ -105,8 +106,8 @@ public class GameControllerPvC {
         });
 
         String message = switch (checkGameState(board)) {
-            case BOTTOM_WON -> "CONGRATULATIONS! You WON! Score: " + board[6] + " - " + board[13];
-            case TOP_WON -> "GAME ENDED! Computer WON! Score: " + board[6] + " - " + board[13];
+            case BOTTOM_WON -> "Bottom WON! Score: " + board[6] + " - " + board[13];
+            case TOP_WON -> "Top WON! Score: " + board[6] + " - " + board[13];
             case DRAW -> "DRAW! Score: " + board[6] + " - " + board[13];
             default -> "";
         };
@@ -149,39 +150,55 @@ public class GameControllerPvC {
         if (topStones == 0) currentBoard[13] += bottomStones;
     }
 
-    private void makeComputerMove() {
-        Task<Integer> computerTask = new Task<>() {
+    private void startAnalysisForCurrentTurn() {
+        startThinkingAnimation();
+        view.enablePlayerButtons(null, null);
+
+        Task<Map<Integer, Integer>> analysisTask = new Task<>() {
             @Override
-            protected Integer call() {
-                boolean isTop = (p2.getSide() == PlayerSide.TOP);
-                return nativeEngine.findBestMove(board, p2.getDepth(), isTop)[0];
+            protected Map<Integer, Integer> call() throws Exception {
+                Map<Integer, Integer> evaluations = new HashMap<>();
+
+                int startIdx = (currentPlayer.getSide() == PlayerSide.BOTTOM) ? 0 : 7;
+                int endIdx = (currentPlayer.getSide() == PlayerSide.BOTTOM) ? 5 : 12;
+
+                for (int i = startIdx; i <= endIdx; i++) {
+                    if (board[i] > 0) {
+                        int[] tempBoard = board.clone();
+                        MoveResult result = moveHandler.move(tempBoard, i, currentPlayer.getSide());
+                        boolean isCurrentTop = currentPlayer.getSide() == PlayerSide.TOP;
+                        boolean isNextTop = isCurrentTop;
+                        if (!result.isGivesExtraTurn()) isNextTop = !isCurrentTop;
+                        int score = (nativeEngine.findBestMove(tempBoard, 16, isNextTop)[1]);
+                        evaluations.put(i, score);
+                    }
+                }
+                return evaluations;
             }
         };
 
-        computerTask.setOnSucceeded(e -> {
-            int bestMove = computerTask.getValue();
+        analysisTask.setOnSucceeded(event -> {
+            Map<Integer, Integer> results = analysisTask.getValue();
+
+            results.forEach((pitId, score) -> {
+                int stones = board[pitId];
+                String buttonText = stones + "\n(" + (score > 0 ? "+" : "") + score + ")";
+                view.buttonMap.get(pitId).getButton().setText(buttonText);
+            });
+
+            view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+            view.bottomLabel.setText(currentPlayer.getSide() == PlayerSide.BOTTOM ? "Bottom player's turn." : "Top player's turn.");
             stopThinkingAnimation();
-            view.bottomLabel.setText("Computer chose pit number " + bestMove + "!");
-            MoveResult move = moveHandler.move(board, bestMove, PlayerSide.TOP);
-            executeMoveSequence(move);
         });
 
-        computerTask.setOnFailed(e -> {
-            view.bottomLabel.setText("ERROR! Computer failed to calculate move!");
-            e.getSource().getException().printStackTrace();
-            isAnimationPlaying = false;
-        });
-
-        Thread thread = new Thread(computerTask);
-        thread.setDaemon(true);
-        thread.start();
+        new Thread(analysisTask).start();
     }
 
     private void startThinkingAnimation() {
         thinkingTimeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.5), e -> view.bottomLabel.setText("Computer thinking.")),
-                new KeyFrame(Duration.seconds(1.0), e -> view.bottomLabel.setText("Computer thinking..")),
-                new KeyFrame(Duration.seconds(1.5), e -> view.bottomLabel.setText("Computer thinking..."))
+                new KeyFrame(Duration.seconds(0.5), e -> view.bottomLabel.setText("Analyzing moves (Depth 16).")),
+                new KeyFrame(Duration.seconds(1.0), e -> view.bottomLabel.setText("Analyzing moves (Depth 16)..")),
+                new KeyFrame(Duration.seconds(1.5), e -> view.bottomLabel.setText("Analyzing moves (Depth 16)..."))
         );
         thinkingTimeline.setCycleCount(Animation.INDEFINITE);
         thinkingTimeline.play();

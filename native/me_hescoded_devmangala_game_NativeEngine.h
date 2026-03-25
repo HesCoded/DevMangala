@@ -10,9 +10,9 @@ extern "C" {
 /*
  * Class:     me_hescoded_devmangala_game_NativeEngine
  * Method:    findBestMove
- * Signature: ([IIZ)I
+ * Signature: ([IIZ)[I
  */
-JNIEXPORT jint JNICALL Java_me_hescoded_devmangala_game_NativeEngine_findBestMove
+JNIEXPORT jintArray JNICALL Java_me_hescoded_devmangala_game_NativeEngine_findBestMove
   (JNIEnv *, jobject, jintArray, jint, jboolean);
 
 #ifdef __cplusplus

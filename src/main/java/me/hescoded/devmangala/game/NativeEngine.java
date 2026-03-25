@@ -5,5 +5,5 @@ public class NativeEngine {
         String libPath = System.getProperty("user.dir") + "/lib/mn88engine.dll";
         System.load(libPath);
     }
-    public native int findBestMove(int[] board, int targetDepth, boolean isTopPlayer);
+    public native int[] findBestMove(int[] board, int targetDepth, boolean isTopPlayer);
 }

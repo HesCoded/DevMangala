@@ -15,6 +15,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import me.hescoded.devmangala.game.AnalysisMode;
 import me.hescoded.devmangala.game.GameControllerPvC;
 import me.hescoded.devmangala.game.Player;
 import me.hescoded.devmangala.variables.PlayerSide;
@@ -121,7 +122,18 @@ public class BoardView {
                     // TODO I think not to do...
                 }
                 if (rbAnalysis.isSelected()) {
-                    // TODO
+                    stageGameMenu.close();
+                    PlayerSide turnPlayer = (cbStarter.getValue().equals("BOTTOM")) ? PlayerSide.BOTTOM : PlayerSide.TOP;
+                    topSideLabel.setText("Top Player");
+                    bottomSideLabel.setText("Bottom Player");
+                    AnalysisMode game = new AnalysisMode(new Player(PlayerSide.BOTTOM, PlayerType.HUMAN, 1),
+                            new Player(PlayerSide.TOP, PlayerType.HUMAN, 1),
+                            turnPlayer, this);
+                    buttonMap.forEach((id, pitButton) -> {
+                        pitButton.getButton().setOnAction(e -> {
+                            game.onPitClicked(id);
+                        });
+                    });
                 }
             });
 
@@ -243,7 +255,7 @@ public class BoardView {
                 String oldStyle = targetButton.getStyle();
                 targetButton.setStyle("-fx-background-color: #f1c40f; -fx-border-color: black; -fx-text-fill: black;");
 
-                int currentStones = Integer.parseInt(targetButton.getText());
+                int currentStones = Integer.parseInt(targetButton.getText().split("\n")[0]);
 
                 if (currentIndex == 0 && currentStones == 1) targetButton.setText(String.valueOf(0));
                 else if (currentIndex == 0 && currentStones > 1) targetButton.setText(String.valueOf(1));

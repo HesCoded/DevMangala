@@ -129,8 +129,8 @@ int evaluate(uint8_t board[14], int gameState) {
         else { for (int i = 0; i < 6; i++) tScore += board[i]; }
 
         int diff = bScore - tScore;
-        if (gameState == 1) return 10000 + diff;
-        if (gameState == 2) return -10000 + diff;
+        // if (gameState == 1) return 10000 + diff;
+        // if (gameState == 2) return -10000 + diff;
         return diff;
     }
     return bScore - tScore;
@@ -228,7 +228,7 @@ int minimax(uint8_t board[14], int depth, bool isTopPlayer, int alpha, int beta)
     }
 }
 
-extern "C" JNIEXPORT jint JNICALL
+extern "C" JNIEXPORT jintArray JNICALL
 Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject obj, jintArray jBoard, jint targetDepth, jboolean isTopPlayer) {
     loadTablebase();
 
@@ -245,6 +245,7 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
     env->ReleaseIntArrayElements(jBoard, cBoard, JNI_ABORT);
 
     int overallBestMove = -1;
+    int finalBestScore = 0;
     for (int d = 1; d <= targetDepth; d++) {
         auto start = chrono::high_resolution_clock::now();
         int bestScore = isTopPlayer ? 999999 : -999999;
@@ -271,10 +272,14 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
             }
         }
         overallBestMove = moveThisDepth;
+        finalBestScore = bestScore;
         auto end = chrono::high_resolution_clock::now();
         cout << "Depth: " << d << " | Best Pit: " << overallBestMove << " | Score: " << bestScore
              << " | Nodes: " << nodeCount << " | Time: " << chrono::duration<double>(end-start).count() << "s"
              << endl;
     }
-    return overallBestMove;
+    jintArray result = env->NewIntArray(2);
+    jint elements[2] = { overallBestMove, finalBestScore };
+    env->SetIntArrayRegion(result, 0, 2, elements);
+    return result;
 }
