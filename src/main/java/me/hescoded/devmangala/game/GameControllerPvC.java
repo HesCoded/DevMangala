@@ -35,7 +35,11 @@ public class GameControllerPvC {
         view.buttonMap.forEach((id, pitButton) -> {
             pitButton.getButton().setText(String.valueOf(board[id]));
         });
-        view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+        if (firstPlayer == PlayerSide.BOTTOM) {
+            view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+        } else {
+            makeComputerMove();
+        }
     }
 
     public void onPitClicked(int pitId) {
