@@ -13,7 +13,7 @@ public class DevMangala extends Application {
     public void start(Stage stage) throws IOException {
         BoardView boardView = new BoardView();
         BorderPane root = boardView.addBorderPane();
-        Scene scene = new Scene(root, 800, 240);
+        Scene scene = new Scene(root, 800, 300);
 
         stage.setTitle("DevMangala");
         stage.setScene(scene);

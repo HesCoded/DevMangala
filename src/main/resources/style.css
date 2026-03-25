@@ -1,5 +1,5 @@
 .root {
-    -fx-background-color: #074254;
+    -fx-background-color: #042934;
 }
 
 .button.pit-button, .button.store-button {
@@ -30,4 +30,16 @@
     -fx-text-fill: #EBF4F6;
     -fx-font-size: 12px;
     -fx-font-weight: bold;
+    -fx-padding: 5px 10px 5px 10px;
+}
+
+.player-label {
+    -fx-text-fill: #EBF4F6;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 5px 10px 5px 10px;
+}
+
+.side-pane {
+    -fx-background-color: #074254;
 }

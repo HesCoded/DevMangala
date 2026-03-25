@@ -25,7 +25,7 @@ import java.util.List;
 
 public class BoardView {
     public HashMap<Integer, PitButton> buttonMap;
-    public Label bottomLabel;
+    public Label bottomLabel, topSideLabel, bottomSideLabel;
     public BorderPane addBorderPane() {
         BorderPane borderPane = new BorderPane();
         borderPane.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
@@ -37,6 +37,9 @@ public class BoardView {
         Button btnRules = new Button("Rules");
         hbox.getChildren().addAll(btnGame, btnAbout, btnRules);
         borderPane.setTop(hbox);
+
+        BorderPane gamePane = new BorderPane();
+        borderPane.setCenter(gamePane);
 
         btnGame.setOnAction(actionEvent -> {
             Stage stageGameMenu = new Stage();
@@ -103,6 +106,8 @@ public class BoardView {
                     stageGameMenu.close();
                     PlayerSide turnPlayer = (cbStarter.getValue().equals("PLAYER")) ? PlayerSide.BOTTOM : PlayerSide.TOP;
                     int computerDepth = cbDepthPvC.getValue();
+                    topSideLabel.setText("Computer (Depth: " + computerDepth + ")");
+                    bottomSideLabel.setText("You");
                     GameControllerPvC game = new GameControllerPvC(new Player(PlayerSide.BOTTOM, PlayerType.HUMAN, 1),
                             new Player(PlayerSide.TOP, PlayerType.COMPUTER, computerDepth),
                             turnPlayer, this);
@@ -113,7 +118,7 @@ public class BoardView {
                     });
                 }
                 if (rbComputerVsComputer.isSelected()) {
-                    // TODO
+                    // TODO I think not to do...
                 }
                 if (rbAnalysis.isSelected()) {
                     // TODO
@@ -153,13 +158,27 @@ public class BoardView {
         btnAbout.setOnAction(actionEvent -> {/*TODO*/});
         btnRules.setOnAction(actionEvent -> {/*TODO*/});
 
+        VBox topSidePane = new VBox();
+        topSidePane.getStyleClass().add("side-pane");
+        topSideLabel = new Label();
+        topSideLabel.getStyleClass().add("player-label");
+        topSidePane.getChildren().add(topSideLabel);
+        gamePane.setTop(topSidePane);
+
+        VBox bottomSidePane = new VBox();
+        bottomSidePane.getStyleClass().add("side-pane");
+        bottomSideLabel = new Label();
+        bottomSideLabel.getStyleClass().add("player-label");
+        bottomSidePane.getChildren().add(bottomSideLabel);
+        gamePane.setBottom(bottomSidePane);
+
         PitButton storeLeft = new PitButton(13, true);
         storeLeft.getButton().getStyleClass().add("store-button");
-        borderPane.setLeft(storeLeft.getButton());
+        gamePane.setLeft(storeLeft.getButton());
         buttonMap.put(13, storeLeft);
         PitButton storeRight = new PitButton(6, true);
         storeRight.getButton().getStyleClass().add("store-button");
-        borderPane.setRight(storeRight.getButton());
+        gamePane.setRight(storeRight.getButton());
         buttonMap.put(6, storeRight);
 
         GridPane gridPane = new GridPane();
@@ -180,11 +199,10 @@ public class BoardView {
             houseButton.getButton().getStyleClass().add("pit-button");
             buttonMap.put(houseId, houseButton);
         }
-        borderPane.setCenter(gridPane);
+        gamePane.setCenter(gridPane);
 
-        bottomLabel = new Label("HesCoded tarafından yapılmıştır.");
+        bottomLabel = new Label("Developed by HesCoded.");
         bottomLabel.getStyleClass().add("bottom-label");
-        bottomLabel.setPadding(new Insets(0, 0, 0, 20));
         borderPane.setBottom(bottomLabel);
 
         return borderPane;
