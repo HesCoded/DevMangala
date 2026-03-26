@@ -39,6 +39,17 @@ public class AnalysisMode {
             pitButton.getButton().setText(String.valueOf(board[id]));
         });
         view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+        view.engineToggle.selectedProperty().addListener((observable, oldValue, newValue) -> {
+            nativeEngine.startSearch();
+            restartAnalysis();
+        });
+        view.depthSlider.valueChangingProperty().addListener((observable, oldValue, newValue) -> {
+            if (!view.isEngineEnabled()) return;
+            if (!newValue) {
+                nativeEngine.startSearch();
+                restartAnalysis();
+            }
+        });
         startAnalysisForCurrentTurn();
     }
 
@@ -172,6 +183,8 @@ public class AnalysisMode {
                 int endIdx = (currentPlayer.getSide() == PlayerSide.BOTTOM) ? 5 : 12;
 
                 for (int i = startIdx; i <= endIdx; i++) {
+                    if (isCancelled()) break;
+                    System.out.println("Analysis for current turn: " + i);
                     if (board[i] > 0) {
                         int[] tempBoard = board.clone();
                         MoveResult result = moveHandler.move(tempBoard, i, currentPlayer.getSide());
@@ -200,7 +213,9 @@ public class AnalysisMode {
             stopThinkingAnimation();
         });
 
-        new Thread(analysisTask).start();
+        analysisThread = new Thread(analysisTask);
+        analysisThread.setDaemon(true);
+        analysisThread.start();
     }
 
     private void startThinkingAnimation() {
@@ -213,6 +228,23 @@ public class AnalysisMode {
         );
         thinkingTimeline.setCycleCount(Animation.INDEFINITE);
         thinkingTimeline.play();
+    }
+
+    private Thread analysisThread;
+
+    public void restartAnalysis() {
+        if (analysisThread != null && analysisThread.isAlive()) {
+            nativeEngine.stopSearch();
+            analysisThread.interrupt();
+            stopThinkingAnimation();
+        }
+
+        if (view.isEngineEnabled()) {
+            startAnalysisForCurrentTurn();
+        } else {
+            view.bottomLabel.setText("Analysis is off.");
+            view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+        }
     }
 
     private void stopThinkingAnimation() {

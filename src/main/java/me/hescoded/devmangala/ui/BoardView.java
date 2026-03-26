@@ -25,8 +25,8 @@ import java.util.List;
 public class BoardView {
     public HashMap<Integer, PitButton> buttonMap;
     public Label bottomLabel, topSideLabel, bottomSideLabel;
-    private ToggleButton engineToggle;
-    private Slider depthSlider;
+    public ToggleButton engineToggle;
+    public Slider depthSlider;
     public BorderPane addBorderPane() {
         BorderPane borderPane = new BorderPane();
         borderPane.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());

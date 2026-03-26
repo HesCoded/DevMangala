@@ -15,6 +15,22 @@ extern "C" {
 JNIEXPORT jintArray JNICALL Java_me_hescoded_devmangala_game_NativeEngine_findBestMove
   (JNIEnv *, jobject, jintArray, jint, jboolean);
 
+/*
+ * Class:     me_hescoded_devmangala_game_NativeEngine
+ * Method:    stopSearch
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_me_hescoded_devmangala_game_NativeEngine_stopSearch
+  (JNIEnv *, jobject);
+
+/*
+ * Class:     me_hescoded_devmangala_game_NativeEngine
+ * Method:    startSearch
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_me_hescoded_devmangala_game_NativeEngine_startSearch
+  (JNIEnv *, jobject);
+
 #ifdef __cplusplus
 }
 #endif

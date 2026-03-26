@@ -6,11 +6,13 @@
 #include <fstream>
 #include <unordered_map>
 #include <cstdint>
+#include <atomic>
 
 using namespace std;
 
 unordered_map<uint64_t, int8_t> tablebase;
 bool tablebase_loaded = false;
+std::atomic<bool> stopSearch(false);
 
 // We have 12 pits and 5 bits for every pits. 61th bit is for turn player, if turn player is top side, it is 1, else 0.
 uint64_t encode_tb(uint8_t pits[12], bool isTopPlayer) {
@@ -157,6 +159,11 @@ void sortPits(const uint8_t board[14], int resultPits[6], bool isTopPlayer, int 
 }
 
 int minimax(uint8_t board[14], int depth, bool isTopPlayer, int alpha, int beta) {
+    if (stopSearch) {
+        cout << "INFO: Search stopped at depth " << depth << " due to stopSearch flag." << endl;
+        return 0;
+    } 
+    
     int state = checkGameState(board);
     if (state != 0) return evaluate(board, state);
 
@@ -282,4 +289,16 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
     jint elements[2] = { overallBestMove, finalBestScore };
     env->SetIntArrayRegion(result, 0, 2, elements);
     return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_hescoded_devmangala_game_NativeEngine_stopSearch(JNIEnv *env, jobject obj) {
+    stopSearch = true;
+    cout << "INFO: Search stop requested by Java side." << endl;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_hescoded_devmangala_game_NativeEngine_startSearch(JNIEnv *env, jobject obj) {
+    stopSearch = false;
+    cout << "INFO: Search started by Java side." << endl;
 }

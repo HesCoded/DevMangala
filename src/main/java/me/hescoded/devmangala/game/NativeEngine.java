@@ -6,4 +6,6 @@ public class NativeEngine {
         System.load(libPath);
     }
     public native int[] findBestMove(int[] board, int targetDepth, boolean isTopPlayer);
+    public native void stopSearch();
+    public native void startSearch();
 }
