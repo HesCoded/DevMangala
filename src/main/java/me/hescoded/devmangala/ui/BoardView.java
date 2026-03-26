@@ -3,15 +3,13 @@ package me.hescoded.devmangala.ui;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
+import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -27,6 +25,8 @@ import java.util.List;
 public class BoardView {
     public HashMap<Integer, PitButton> buttonMap;
     public Label bottomLabel, topSideLabel, bottomSideLabel;
+    private ToggleButton engineToggle;
+    private Slider depthSlider;
     public BorderPane addBorderPane() {
         BorderPane borderPane = new BorderPane();
         borderPane.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
@@ -170,12 +170,36 @@ public class BoardView {
         btnAbout.setOnAction(actionEvent -> {/*TODO*/});
         btnRules.setOnAction(actionEvent -> {/*TODO*/});
 
-        VBox topSidePane = new VBox();
+        HBox topSidePane = new HBox();
+        topSidePane.setAlignment(Pos.BOTTOM_LEFT);
         topSidePane.getStyleClass().add("side-pane");
         topSideLabel = new Label();
         topSideLabel.getStyleClass().add("player-label");
-        topSidePane.getChildren().add(topSideLabel);
         gamePane.setTop(topSidePane);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox controlPane = new HBox(10);
+        controlPane.setAlignment(Pos.CENTER_RIGHT);
+        controlPane.setPadding(new Insets(5, 5, 5, 5));
+
+        engineToggle = new ToggleButton("Analysis: Off");
+        engineToggle.getStyleClass().add("engine-toggle");
+        engineToggle.setSelected(true);
+        engineToggle.textProperty().bind(Bindings.when(engineToggle.selectedProperty())
+                .then("Analysis: On")
+                .otherwise("Analysis: Off"));
+
+        depthSlider = new Slider(12, 20, 16);
+        depthSlider.setShowTickLabels(true);
+        depthSlider.setMajorTickUnit(2);
+        depthSlider.setMinorTickCount(0);
+        depthSlider.setSnapToTicks(true);
+        depthSlider.setMinWidth(200);
+
+        controlPane.getChildren().addAll(engineToggle, depthSlider);
+        topSidePane.getChildren().addAll(topSideLabel, spacer, controlPane);
 
         VBox bottomSidePane = new VBox();
         bottomSidePane.getStyleClass().add("side-pane");
@@ -218,6 +242,14 @@ public class BoardView {
         borderPane.setBottom(bottomLabel);
 
         return borderPane;
+    }
+
+    public boolean isEngineEnabled() {
+        return engineToggle.isSelected();
+    }
+
+    public int getEngineDepth() {
+        return (int) depthSlider.getValue();
     }
 
     public void enablePlayerButtons(PlayerSide side, List<Integer> zeroButtons) {

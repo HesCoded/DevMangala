@@ -151,8 +151,17 @@ public class AnalysisMode {
     }
 
     private void startAnalysisForCurrentTurn() {
+        if (!view.isEngineEnabled()) {
+            view.bottomLabel.setText((currentPlayer.getSide() == PlayerSide.BOTTOM ? "Bottom" : "Top") + " player's turn. Analysis is off." );
+            view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
+            // isEngineThinking = false;
+            return;
+        }
+
         startThinkingAnimation();
         view.enablePlayerButtons(null, null);
+
+        int depth = view.getEngineDepth();
 
         Task<Map<Integer, Integer>> analysisTask = new Task<>() {
             @Override
@@ -169,7 +178,7 @@ public class AnalysisMode {
                         boolean isCurrentTop = currentPlayer.getSide() == PlayerSide.TOP;
                         boolean isNextTop = isCurrentTop;
                         if (!result.isGivesExtraTurn()) isNextTop = !isCurrentTop;
-                        int score = (nativeEngine.findBestMove(tempBoard, 16, isNextTop)[1]);
+                        int score = (nativeEngine.findBestMove(tempBoard, depth, isNextTop)[1]);
                         evaluations.put(i, score);
                     }
                 }
@@ -195,10 +204,12 @@ public class AnalysisMode {
     }
 
     private void startThinkingAnimation() {
+        int depth = view.getEngineDepth();
+        String analyzingText = "Analyzing moves (Depth: " +  depth + ")";
         thinkingTimeline = new Timeline(
-                new KeyFrame(Duration.seconds(0.5), e -> view.bottomLabel.setText("Analyzing moves (Depth 16).")),
-                new KeyFrame(Duration.seconds(1.0), e -> view.bottomLabel.setText("Analyzing moves (Depth 16)..")),
-                new KeyFrame(Duration.seconds(1.5), e -> view.bottomLabel.setText("Analyzing moves (Depth 16)..."))
+                new KeyFrame(Duration.seconds(0.5), e -> view.bottomLabel.setText(analyzingText + ".")),
+                new KeyFrame(Duration.seconds(1.0), e -> view.bottomLabel.setText(analyzingText + "..")),
+                new KeyFrame(Duration.seconds(1.5), e -> view.bottomLabel.setText(analyzingText + "..."))
         );
         thinkingTimeline.setCycleCount(Animation.INDEFINITE);
         thinkingTimeline.play();

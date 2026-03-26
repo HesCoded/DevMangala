@@ -43,3 +43,30 @@
 .side-pane {
     -fx-background-color: #074254;
 }
+
+.engine-toggle {
+    -fx-background-radius: 20px;
+    -fx-padding: 5 15 5 15;
+    -fx-font-family: "Segoe UI Semibold", sans-serif;
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+}
+
+.engine-toggle:not(:selected) {
+    -fx-background-color: #3e4a59; /* Gri/Koyu arka plan */
+    -fx-border-color: #000000;
+    -fx-border-width: 1;
+    -fx-border-radius: 20px;
+}
+
+.engine-toggle:selected {
+    -fx-background-color: #64afe1; /* Mavi arka plan */
+    -fx-border-color: #f1c40f; /* Altın sarısı kenarlık */
+    -fx-border-width: 1;
+    -fx-border-radius: 20px;
+}
+
+.engine-toggle:hover {
+    -fx-opacity: 0.9;
+}
