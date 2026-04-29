@@ -5,6 +5,7 @@ target/
 .kotlin
 data/
 lib/
+out/
 *.class
 
 ### IntelliJ IDEA ###
