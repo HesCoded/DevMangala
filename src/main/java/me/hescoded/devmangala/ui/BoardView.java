@@ -3,14 +3,12 @@ package me.hescoded.devmangala.ui;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
-import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
-import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import me.hescoded.devmangala.game.AnalysisMode;
@@ -18,6 +16,7 @@ import me.hescoded.devmangala.game.GameControllerPvC;
 import me.hescoded.devmangala.game.Player;
 import me.hescoded.devmangala.variables.PlayerSide;
 import me.hescoded.devmangala.variables.PlayerType;
+import org.controlsfx.control.ToggleSwitch;
 
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +24,7 @@ import java.util.List;
 public class BoardView {
     public HashMap<Integer, PitButton> buttonMap;
     public Label bottomLabel, topSideLabel, bottomSideLabel;
-    public ToggleButton engineToggle;
+    public ToggleSwitch engineToggle;
     public Slider depthSlider;
     public BorderPane addBorderPane() {
         BorderPane borderPane = new BorderPane();
@@ -191,12 +190,10 @@ public class BoardView {
         controlPane.setAlignment(Pos.CENTER_RIGHT);
         controlPane.setPadding(new Insets(5, 5, 5, 5));
 
-        engineToggle = new ToggleButton("Analysis: Off");
-        engineToggle.getStyleClass().add("engine-toggle");
+        engineToggle = new ToggleSwitch();
+        // engineToggle.getStyleClass().add("engine-toggle");
         engineToggle.setSelected(false);
-        engineToggle.textProperty().bind(Bindings.when(engineToggle.selectedProperty())
-                .then("Analysis: On")
-                .otherwise("Analysis: Off"));
+        // engineToggle.textProperty().bind(Bindings.when(engineToggle.selectedProperty()).then("Analysis: On").otherwise("Analysis: Off"));
 
         depthSlider = new Slider(12, 20, 16);
         depthSlider.setShowTickLabels(true);
