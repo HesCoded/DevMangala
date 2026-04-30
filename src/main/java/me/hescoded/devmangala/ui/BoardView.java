@@ -11,11 +11,9 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 import javafx.util.Duration;
-import me.hescoded.devmangala.game.AnalysisMode;
-import me.hescoded.devmangala.game.GameControllerPvC;
+import me.hescoded.devmangala.game.GameController;
 import me.hescoded.devmangala.game.Player;
 import me.hescoded.devmangala.variables.PlayerSide;
-import me.hescoded.devmangala.variables.PlayerType;
 import org.controlsfx.control.ToggleSwitch;
 
 import java.util.HashMap;
@@ -143,9 +141,8 @@ public class BoardView {
                     topSideLabel.setText("Computer (Depth: " + depth + ")");
                     bottomSideLabel.setText("You");
 
-                    GameControllerPvC game = new GameControllerPvC(new Player(PlayerSide.BOTTOM, PlayerType.HUMAN, 1),
-                            new Player(PlayerSide.TOP, PlayerType.COMPUTER, depth),
-                            turnPlayer, this);
+                    GameController game = new GameController(new Player(PlayerSide.BOTTOM, 1),
+                            new Player(PlayerSide.TOP, depth), turnPlayer, this, GameController.GameMode.PVC, 6, 4);
 
                     buttonMap.forEach((id, pitButton) -> {
                         pitButton.getButton().setOnAction(e2 -> {
@@ -158,9 +155,8 @@ public class BoardView {
                     topSideLabel.setText("Top Player");
                     bottomSideLabel.setText("Bottom Player");
 
-                    AnalysisMode game = new AnalysisMode(new Player(PlayerSide.BOTTOM, PlayerType.HUMAN, 1),
-                            new Player(PlayerSide.TOP, PlayerType.HUMAN, 1),
-                            turnPlayer, this);
+                    GameController game = new GameController(new Player(PlayerSide.BOTTOM, 1),
+                            new Player(PlayerSide.TOP, 1), turnPlayer, this, GameController.GameMode.ANALYSIS, 6, 4);
 
                     buttonMap.forEach((id, pitButton) -> {
                         pitButton.getButton().setOnAction(e2 -> {
