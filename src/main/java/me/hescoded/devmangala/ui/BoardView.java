@@ -43,128 +43,135 @@ public class BoardView {
         borderPane.setCenter(gamePane);
 
         btnGame.setOnAction(actionEvent -> {
-            Stage stageGameMenu = new Stage();
-            stageGameMenu.setTitle("New Game");
-            VBox rootGameMenu = new VBox();
-            rootGameMenu.setAlignment(Pos.CENTER);
-            Scene sceneGameMenu = new Scene(rootGameMenu, 350, 300);
-
-            VBox panelGameTypeChoice = new VBox();
-            panelGameTypeChoice.setAlignment(Pos.CENTER);
-            VBox.setMargin(panelGameTypeChoice, new Insets(0, 0, 30, 0));
-            ToggleGroup tgGameTypeChoice = new ToggleGroup();
-            RadioButton rbPlayerVsComputer = new RadioButton("Player vs Computer");
-            RadioButton rbComputerVsComputer = new RadioButton("Computer vs Computer");
+            RadioButton rbPvC = new RadioButton("Player vs Computer");
             RadioButton rbAnalysis = new RadioButton("Analysis");
-            rbPlayerVsComputer.setSelected(true);
-            rbPlayerVsComputer.setToggleGroup(tgGameTypeChoice);
-            rbComputerVsComputer.setToggleGroup(tgGameTypeChoice);
-            rbAnalysis.setToggleGroup(tgGameTypeChoice);
-            panelGameTypeChoice.getChildren().add(rbPlayerVsComputer);
-            panelGameTypeChoice.getChildren().add(rbComputerVsComputer);
-            panelGameTypeChoice.getChildren().add(rbAnalysis);
+            rbPvC.getStyleClass().add("newgame-menu-radio");
+            rbAnalysis.getStyleClass().add("newgame-menu-radio");
 
-            VBox depthPane = new VBox();
-            VBox.setMargin(depthPane, new Insets(0, 0, 30, 0));
-            Integer[] depthOptions = {1, 3, 5, 8, 12, 14, 16, 20, 100};
+            ToggleGroup gameModeGroup = new ToggleGroup();
+            rbPvC.setToggleGroup(gameModeGroup);
+            rbAnalysis.setToggleGroup(gameModeGroup);
+            rbPvC.setSelected(true);
 
-            GridPane gpDepthPvC = new GridPane(2, 1);
-            gpDepthPvC.setAlignment(Pos.CENTER);
-            gpDepthPvC.add(new Text("Computer Depth: "), 0, 0);
-            ComboBox<Integer> cbDepthPvC = new ComboBox<>(FXCollections.observableArrayList(depthOptions));
-            cbDepthPvC.getSelectionModel().selectFirst();
-            gpDepthPvC.add(cbDepthPvC, 1, 0);
-            depthPane.getChildren().add(gpDepthPvC);
+            VBox radioBox = new VBox(10, rbPvC, rbAnalysis);
 
-            GridPane gpDepthCvC = new GridPane(2, 2);
-            gpDepthCvC.setAlignment(Pos.CENTER);
-            gpDepthCvC.add(new Text("Top Computer Depth: "), 0, 0);
-            ComboBox<Integer> cbDepthCvCTop = new ComboBox<>(FXCollections.observableArrayList(depthOptions));
-            cbDepthCvCTop.getSelectionModel().selectFirst();
-            gpDepthCvC.add(cbDepthCvCTop, 1, 0);
-            gpDepthCvC.add(new Text("Bottom Computer Depth: "), 0, 1);
-            ComboBox<Integer> cbDepthCvCBottom = new ComboBox<>(FXCollections.observableArrayList(depthOptions));
-            cbDepthCvCBottom.getSelectionModel().selectFirst();
-            gpDepthCvC.add(cbDepthCvCBottom, 1, 1);
+            Separator separator = new Separator();
 
-            VBox starterPane = new VBox();
-            VBox.setMargin(starterPane, new Insets(0, 0, 30, 0));
+            Label lbDepth = new Label("Computer Depth:");
+            lbDepth.setPrefWidth(110.0f);
+            lbDepth.getStyleClass().add("newgame-menu-label");
+            ComboBox<Integer> comboDepth = new ComboBox<>(FXCollections.observableArrayList(1, 3, 5, 8, 10, 12, 14, 16, 18, 20, 100));
+            comboDepth.getSelectionModel().selectFirst();
+            comboDepth.setPrefWidth(70.0f);
+            comboDepth.getStyleClass().add("newgame-menu-combo");
+            HBox depthBox = new HBox(10, lbDepth, comboDepth);
+            depthBox.setAlignment(Pos.CENTER_LEFT);
 
-            GridPane gpStarter = new GridPane(2, 1);
-            gpStarter.setAlignment(Pos.CENTER);
-            gpStarter.add(new Text("Who goes first: "), 0, 0);
-            String[] starterOptionsPvC = {"PLAYER", "COMPUTER"};
-            String[] starterOptionsCvC = {"BOTTOM", "TOP"};
-            ComboBox<String> cbStarter = new ComboBox<>(FXCollections.observableArrayList(starterOptionsPvC));
-            cbStarter.getSelectionModel().selectFirst();
-            gpStarter.add(cbStarter, 1, 0);
-            starterPane.getChildren().add(gpStarter);
+            Label lbPits = new Label("Pits per Player:");
+            lbPits.setPrefWidth(110.0f);
+            lbPits.getStyleClass().add("newgame-menu-label");
+            ComboBox<Integer> comboPits = new ComboBox<>(FXCollections.observableArrayList(4, 5, 6, 7));
+            comboPits.getSelectionModel().select(2);
+            comboPits.setPrefWidth(70.0f);
+            comboPits.getStyleClass().add("newgame-menu-combo");
+            HBox pitsBox = new HBox(10, lbPits, comboPits);
+            pitsBox.setAlignment(Pos.CENTER_LEFT);
 
-            Button btnStartGame = new Button("Start Game");
-            btnStartGame.setAlignment(Pos.CENTER);
-            btnStartGame.setOnAction(actionEvent1 -> {
-                if (rbPlayerVsComputer.isSelected()) {
-                    stageGameMenu.close();
-                    PlayerSide turnPlayer = (cbStarter.getValue().equals("PLAYER")) ? PlayerSide.BOTTOM : PlayerSide.TOP;
-                    int computerDepth = cbDepthPvC.getValue();
-                    topSideLabel.setText("Computer (Depth: " + computerDepth + ")");
+            Label lbStones = new Label("Stones per Pit:");
+            lbStones.setPrefWidth(110.0f);
+            lbStones.getStyleClass().add("newgame-menu-label");
+            ComboBox<Integer> comboStones = new ComboBox<>(FXCollections.observableArrayList(3, 4, 5, 6));
+            comboStones.getSelectionModel().select(1);
+            comboStones.setPrefWidth(70.0f);
+            comboStones.getStyleClass().add("newgame-menu-combo");
+            HBox stonesBox = new HBox(10, lbStones, comboStones);
+            stonesBox.setAlignment(Pos.CENTER_LEFT);
+
+            Label lbFirst = new Label("Who goes first:");
+            lbFirst.setPrefWidth(110.0f);
+            lbFirst.getStyleClass().add("newgame-menu-label");
+            ComboBox<String> comboFirst = new ComboBox<>();
+            comboFirst.setItems(FXCollections.observableArrayList("Player", "Computer"));
+            comboFirst.getSelectionModel().selectFirst();
+            comboFirst.getStyleClass().add("newgame-menu-combo");
+            HBox firstBox = new HBox(10, lbFirst, comboFirst);
+            firstBox.setAlignment(Pos.CENTER_LEFT);
+
+            VBox optionsBox = new VBox(10);
+            optionsBox.getChildren().addAll(depthBox, pitsBox, stonesBox, firstBox);
+
+            gameModeGroup.selectedToggleProperty().addListener(((observable, oldValue, newValue) -> {
+                if (newValue == rbPvC) {
+                    comboDepth.setDisable(false);
+                    comboFirst.setItems(FXCollections.observableArrayList("Player", "Computer"));
+                    comboFirst.getSelectionModel().selectFirst();
+                }
+                if (newValue == rbAnalysis) {
+                    comboDepth.setDisable(true);
+                    comboFirst.setItems(FXCollections.observableArrayList("Bottom", "Top"));
+                    comboFirst.getSelectionModel().selectFirst();
+                }
+            }));
+
+            Button btnStart = new Button("Start Game");
+            btnStart.getStyleClass().add("newgame-start-button");
+
+            VBox root = new VBox(25);
+            root.getStyleClass().add("newgame-root-pane");
+            root.setPadding(new Insets(20));
+            root.setAlignment(Pos.TOP_CENTER);
+
+            VBox.setMargin(btnStart, new Insets(10, 0, 0, 0));
+
+            root.getChildren().addAll(radioBox, separator, optionsBox, btnStart);
+            // root.getStylesheets().add(getClass().getResource("/style.css").toExternalForm()); // My CSS plan is not ready, so I won't use them for now!
+
+            Scene scene = new Scene(root, 300, 350);
+
+            Stage stageNewGame = new Stage();
+            stageNewGame.setTitle("New Game");
+            stageNewGame.setScene(scene);
+            stageNewGame.setResizable(false);
+            stageNewGame.show();
+
+            btnStart.setOnAction(e -> {
+                int depth = (comboDepth.getValue() != null) ? comboDepth.getValue() : 1;
+                // int pitsPerPlayer = (comboPits.getValue() != null) ? comboPits.getValue() : 6; // I haven't updated my code for different number of pits and stones for now!
+                // int stonesPerPit = (comboStones.getValue() != null) ? comboStones.getValue() : 4; // I haven't updated my code for different number of pits and stones for now!
+                PlayerSide turnPlayer = (comboFirst.getValue().equals("Player") || comboFirst.getValue().equals("Bottom")) ? PlayerSide.BOTTOM : PlayerSide.TOP;
+
+                if (rbPvC.isSelected()) {
+                    topSideLabel.setText("Computer (Depth: " + depth + ")");
                     bottomSideLabel.setText("You");
+
                     GameControllerPvC game = new GameControllerPvC(new Player(PlayerSide.BOTTOM, PlayerType.HUMAN, 1),
-                            new Player(PlayerSide.TOP, PlayerType.COMPUTER, computerDepth),
+                            new Player(PlayerSide.TOP, PlayerType.COMPUTER, depth),
                             turnPlayer, this);
+
                     buttonMap.forEach((id, pitButton) -> {
-                        pitButton.getButton().setOnAction(e -> {
+                        pitButton.getButton().setOnAction(e2 -> {
                             game.onPitClicked(id);
                         });
                     });
                 }
-                if (rbComputerVsComputer.isSelected()) {
-                    // TODO I think not to do...
-                }
+
                 if (rbAnalysis.isSelected()) {
-                    stageGameMenu.close();
-                    PlayerSide turnPlayer = (cbStarter.getValue().equals("BOTTOM")) ? PlayerSide.BOTTOM : PlayerSide.TOP;
                     topSideLabel.setText("Top Player");
                     bottomSideLabel.setText("Bottom Player");
+
                     AnalysisMode game = new AnalysisMode(new Player(PlayerSide.BOTTOM, PlayerType.HUMAN, 1),
                             new Player(PlayerSide.TOP, PlayerType.HUMAN, 1),
                             turnPlayer, this);
+
                     buttonMap.forEach((id, pitButton) -> {
-                        pitButton.getButton().setOnAction(e -> {
+                        pitButton.getButton().setOnAction(e2 -> {
                             game.onPitClicked(id);
                         });
                     });
                 }
-            });
 
-            rbPlayerVsComputer.setOnAction(actionEvent1 -> {
-                depthPane.getChildren().clear();
-                depthPane.getChildren().add(gpDepthPvC);
-                VBox.setMargin(depthPane, new Insets(0, 0, 30, 0));
-                cbStarter.setItems(FXCollections.observableArrayList(starterOptionsPvC));
-                cbStarter.getSelectionModel().selectFirst();
+                stageNewGame.close();
             });
-            rbComputerVsComputer.setOnAction(actionEvent1 -> {
-                depthPane.getChildren().clear();
-                depthPane.getChildren().add(gpDepthCvC);
-                VBox.setMargin(depthPane, new Insets(0, 0, 30, 0));
-                cbStarter.setItems(FXCollections.observableArrayList(starterOptionsCvC));
-                cbStarter.getSelectionModel().selectFirst();
-            });
-            rbAnalysis.setOnAction(actionEvent1 -> {
-                depthPane.getChildren().clear();
-                VBox.setMargin(depthPane, new Insets(0, 0, 0, 0));
-                cbStarter.setItems(FXCollections.observableArrayList(starterOptionsCvC));
-                cbStarter.getSelectionModel().selectFirst();
-            });
-
-            rootGameMenu.getChildren().add(panelGameTypeChoice);
-            rootGameMenu.getChildren().add(depthPane);
-            rootGameMenu.getChildren().add(starterPane);
-            rootGameMenu.getChildren().add(btnStartGame);
-
-            stageGameMenu.setScene(sceneGameMenu);
-            stageGameMenu.show();
         });
 
         btnAbout.setOnAction(actionEvent -> {/*TODO*/});
@@ -186,7 +193,7 @@ public class BoardView {
 
         engineToggle = new ToggleButton("Analysis: Off");
         engineToggle.getStyleClass().add("engine-toggle");
-        engineToggle.setSelected(true);
+        engineToggle.setSelected(false);
         engineToggle.textProperty().bind(Bindings.when(engineToggle.selectedProperty())
                 .then("Analysis: On")
                 .otherwise("Analysis: Off"));

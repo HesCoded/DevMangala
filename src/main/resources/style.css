@@ -70,3 +70,29 @@
 .engine-toggle:hover {
     -fx-opacity: 0.9;
 }
+
+.newgame-root-pane {
+    -fx-background-color: #074254;
+}
+
+.newgame-menu-label {
+    -fx-text-fill: #8b7005;
+    -fx-font-weight: bold;
+}
+
+.newgame-menu-radio {
+    -fx-text-fill: #8b7005;
+    -fx-font-weight: bold;
+}
+
+.newgame-menu-combo {
+    -fx-background-color: #088395;
+    -fx-text-base-color: #8b7005;
+    -fx-mark-color: #8b7005;
+}
+
+.newgame-start-button {
+    -fx-background-color: #7AB2B2;
+    -fx-text-fill: #8b7005;
+    -fx-font-weight: bold;
+}

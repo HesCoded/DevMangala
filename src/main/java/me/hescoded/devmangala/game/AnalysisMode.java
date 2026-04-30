@@ -21,7 +21,6 @@ public class AnalysisMode {
     private BoardView view;
     private MoveHandler moveHandler;
     private boolean isAnimationPlaying = false;
-    private boolean isEngineThinking = false;
     private Timeline thinkingTimeline;
     private NativeEngine nativeEngine;
 
@@ -165,7 +164,6 @@ public class AnalysisMode {
         if (!view.isEngineEnabled()) {
             view.bottomLabel.setText((currentPlayer.getSide() == PlayerSide.BOTTOM ? "Bottom" : "Top") + " player's turn. Analysis is off." );
             view.enablePlayerButtons(currentPlayer.getSide(), getZeroButtons());
-            // isEngineThinking = false;
             return;
         }
 
