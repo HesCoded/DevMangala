@@ -83,8 +83,8 @@ public class GameController {
         if (mode == GameMode.PVC) {
             if (currentPlayer.getSide() != PlayerSide.BOTTOM) return;
         } else if (mode == GameMode.ANALYSIS) {
-            if (currentPlayer.getSide() == PlayerSide.BOTTOM && pitId > 5) return;
-            if (currentPlayer.getSide() == PlayerSide.TOP && pitId < 7) return;
+            if (currentPlayer.getSide() == PlayerSide.BOTTOM && pitId >= PIT_PER_PLAYER) return;
+            if (currentPlayer.getSide() == PlayerSide.TOP && (pitId <= PIT_PER_PLAYER) || (pitId == PIT_PER_PLAYER * 2 + 1)) return;
         }
 
         view.enablePlayerButtons(null, null);
@@ -270,7 +270,7 @@ public class GameController {
                 int endIdx = (currentPlayer.getSide() == PlayerSide.BOTTOM) ? PIT_PER_PLAYER - 1 : PIT_PER_PLAYER * 2;
 
                 for (int i = startIdx; i <= endIdx; i++) {
-                    if (isCancelled()) break;
+                    if (Thread.currentThread().isInterrupted()) break;
                     System.out.println("Analysis for current turn: " + i);
 
                     if (board[i] > 0) {
