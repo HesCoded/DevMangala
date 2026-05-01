@@ -24,7 +24,11 @@ public class BoardView {
     public Label bottomLabel, topSideLabel, bottomSideLabel;
     public ToggleSwitch engineToggle;
     public Slider depthSlider;
-    public BorderPane addBorderPane() {
+
+    private BorderPane gamePane;
+    private int currentPitsPerPlayer = 6;
+
+    public BorderPane addBorderPane(Stage primaryStage) {
         BorderPane borderPane = new BorderPane();
         borderPane.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
         buttonMap = new HashMap<>();
@@ -36,8 +40,50 @@ public class BoardView {
         hbox.getChildren().addAll(btnGame, btnAbout, btnRules);
         borderPane.setTop(hbox);
 
-        BorderPane gamePane = new BorderPane();
+        gamePane = new BorderPane();
         borderPane.setCenter(gamePane);
+
+        HBox topSidePane = new HBox();
+        topSidePane.setAlignment(Pos.BOTTOM_LEFT);
+        topSidePane.getStyleClass().add("side-pane");
+        topSideLabel = new Label();
+        topSideLabel.getStyleClass().add("player-label");
+        gamePane.setTop(topSidePane);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        HBox controlPane = new HBox(10);
+        controlPane.setAlignment(Pos.CENTER_RIGHT);
+        controlPane.setPadding(new Insets(5, 5, 5, 5));
+
+        engineToggle = new ToggleSwitch();
+        // engineToggle.getStyleClass().add("engine-toggle");
+        engineToggle.setSelected(false);
+        // engineToggle.textProperty().bind(Bindings.when(engineToggle.selectedProperty()).then("Analysis: On").otherwise("Analysis: Off"));
+
+        depthSlider = new Slider(12, 20, 16);
+        depthSlider.setShowTickLabels(true);
+        depthSlider.setMajorTickUnit(2);
+        depthSlider.setMinorTickCount(0);
+        depthSlider.setSnapToTicks(true);
+        depthSlider.setMinWidth(200);
+
+        controlPane.getChildren().addAll(engineToggle, depthSlider);
+        topSidePane.getChildren().addAll(topSideLabel, spacer, controlPane);
+
+        VBox bottomSidePane = new VBox();
+        bottomSidePane.getStyleClass().add("side-pane");
+        bottomSideLabel = new Label();
+        bottomSideLabel.getStyleClass().add("player-label");
+        bottomSidePane.getChildren().add(bottomSideLabel);
+        gamePane.setBottom(bottomSidePane);
+
+        buildBoard(6, 4);
+
+        bottomLabel = new Label("Developed by HesCoded.");
+        bottomLabel.getStyleClass().add("bottom-label");
+        borderPane.setBottom(bottomLabel);
 
         btnGame.setOnAction(actionEvent -> {
             RadioButton rbPvC = new RadioButton("Player vs Computer");
@@ -132,38 +178,31 @@ public class BoardView {
             stageNewGame.show();
 
             btnStart.setOnAction(e -> {
+                GameController.GameMode selectedMode = rbPvC.isSelected() ? GameController.GameMode.PVC : GameController.GameMode.ANALYSIS;
                 int depth = (comboDepth.getValue() != null) ? comboDepth.getValue() : 1;
-                // int pitsPerPlayer = (comboPits.getValue() != null) ? comboPits.getValue() : 6; // I haven't updated my code for different number of pits and stones for now!
-                // int stonesPerPit = (comboStones.getValue() != null) ? comboStones.getValue() : 4; // I haven't updated my code for different number of pits and stones for now!
+                int pitsPerPlayer = (comboPits.getValue() != null) ? comboPits.getValue() : 6;
+                int stonesPerPit = (comboStones.getValue() != null) ? comboStones.getValue() : 4;
                 PlayerSide turnPlayer = (comboFirst.getValue().equals("Player") || comboFirst.getValue().equals("Bottom")) ? PlayerSide.BOTTOM : PlayerSide.TOP;
 
-                if (rbPvC.isSelected()) {
+                buildBoard(pitsPerPlayer, stonesPerPit);
+
+                double newWidth = (pitsPerPlayer * 100) + 200;
+                primaryStage.setWidth(newWidth);
+
+                if (selectedMode == GameController.GameMode.PVC) {
                     topSideLabel.setText("Computer (Depth: " + depth + ")");
                     bottomSideLabel.setText("You");
-
-                    GameController game = new GameController(new Player(PlayerSide.BOTTOM, 1),
-                            new Player(PlayerSide.TOP, depth), turnPlayer, this, GameController.GameMode.PVC, 6, 4);
-
-                    buttonMap.forEach((id, pitButton) -> {
-                        pitButton.getButton().setOnAction(e2 -> {
-                            game.onPitClicked(id);
-                        });
-                    });
-                }
-
-                if (rbAnalysis.isSelected()) {
+                } else {
                     topSideLabel.setText("Top Player");
                     bottomSideLabel.setText("Bottom Player");
-
-                    GameController game = new GameController(new Player(PlayerSide.BOTTOM, 1),
-                            new Player(PlayerSide.TOP, 1), turnPlayer, this, GameController.GameMode.ANALYSIS, 6, 4);
-
-                    buttonMap.forEach((id, pitButton) -> {
-                        pitButton.getButton().setOnAction(e2 -> {
-                            game.onPitClicked(id);
-                        });
-                    });
                 }
+
+                GameController game = new GameController(new Player(PlayerSide.BOTTOM, 1),
+                        new Player(PlayerSide.TOP, depth), turnPlayer, this, selectedMode, pitsPerPlayer, stonesPerPit);
+
+                buttonMap.forEach((id, pitButton) -> {
+                    pitButton.getButton().setOnAction(e2 -> game.onPitClicked(id));
+                });
 
                 stageNewGame.close();
             });
@@ -172,76 +211,54 @@ public class BoardView {
         btnAbout.setOnAction(actionEvent -> {/*TODO*/});
         btnRules.setOnAction(actionEvent -> {/*TODO*/});
 
-        HBox topSidePane = new HBox();
-        topSidePane.setAlignment(Pos.BOTTOM_LEFT);
-        topSidePane.getStyleClass().add("side-pane");
-        topSideLabel = new Label();
-        topSideLabel.getStyleClass().add("player-label");
-        gamePane.setTop(topSidePane);
+        return borderPane;
+    }
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+    private void buildBoard(int pitsPerPlayer, int stonesPerPit) {
+        this.currentPitsPerPlayer = pitsPerPlayer;
+        buttonMap.clear();
 
-        HBox controlPane = new HBox(10);
-        controlPane.setAlignment(Pos.CENTER_RIGHT);
-        controlPane.setPadding(new Insets(5, 5, 5, 5));
+        gamePane.setLeft(null);
+        gamePane.setCenter(null);
+        gamePane.setRight(null);
 
-        engineToggle = new ToggleSwitch();
-        // engineToggle.getStyleClass().add("engine-toggle");
-        engineToggle.setSelected(false);
-        // engineToggle.textProperty().bind(Bindings.when(engineToggle.selectedProperty()).then("Analysis: On").otherwise("Analysis: Off"));
+        int rightStoreId = pitsPerPlayer;
+        int leftStoreId = pitsPerPlayer * 2 + 1;
 
-        depthSlider = new Slider(12, 20, 16);
-        depthSlider.setShowTickLabels(true);
-        depthSlider.setMajorTickUnit(2);
-        depthSlider.setMinorTickCount(0);
-        depthSlider.setSnapToTicks(true);
-        depthSlider.setMinWidth(200);
-
-        controlPane.getChildren().addAll(engineToggle, depthSlider);
-        topSidePane.getChildren().addAll(topSideLabel, spacer, controlPane);
-
-        VBox bottomSidePane = new VBox();
-        bottomSidePane.getStyleClass().add("side-pane");
-        bottomSideLabel = new Label();
-        bottomSideLabel.getStyleClass().add("player-label");
-        bottomSidePane.getChildren().add(bottomSideLabel);
-        gamePane.setBottom(bottomSidePane);
-
-        PitButton storeLeft = new PitButton(13, true);
+        PitButton storeLeft = new PitButton(leftStoreId, true);
         storeLeft.getButton().getStyleClass().add("store-button");
+        storeLeft.getButton().setText("0");
         gamePane.setLeft(storeLeft.getButton());
-        buttonMap.put(13, storeLeft);
-        PitButton storeRight = new PitButton(6, true);
+        buttonMap.put(leftStoreId, storeLeft);
+
+        PitButton storeRight = new PitButton(rightStoreId, true);
         storeRight.getButton().getStyleClass().add("store-button");
+        storeRight.getButton().setText("0");
         gamePane.setRight(storeRight.getButton());
-        buttonMap.put(6, storeRight);
+        buttonMap.put(rightStoreId, storeRight);
 
         GridPane gridPane = new GridPane();
         gridPane.setHgap(0);
         gridPane.setVgap(0);
-        for (int i = 0; i < 12; i++) {
+        gridPane.setAlignment(Pos.CENTER);
+
+        for (int i = 0; i < pitsPerPlayer * 2; i++) {
             PitButton houseButton;
             int houseId;
-            if (i < 6) {
+            if (i < pitsPerPlayer) {
                 houseId = i;
                 houseButton = new PitButton(houseId, false);
                 gridPane.add(houseButton.getButton(), i, 1);
             } else {
                 houseId = i + 1;
                 houseButton = new PitButton(houseId, false);
-                gridPane.add(houseButton.getButton(), 11 - i, 0);
+                gridPane.add(houseButton.getButton(), (pitsPerPlayer * 2) - 1 - i, 0);
             }
+            houseButton.getButton().setText(String.valueOf(stonesPerPit));
             houseButton.getButton().getStyleClass().add("pit-button");
             buttonMap.put(houseId, houseButton);
         }
         gamePane.setCenter(gridPane);
-
-        bottomLabel = new Label("Developed by HesCoded.");
-        bottomLabel.getStyleClass().add("bottom-label");
-        borderPane.setBottom(bottomLabel);
-
-        return borderPane;
     }
 
     public boolean isEngineEnabled() {
@@ -260,8 +277,8 @@ public class BoardView {
 
             if (zeroButtons != null) {
                 if (!zeroButtons.contains(id)) {
-                    boolean isBottomTurn = (side == PlayerSide.BOTTOM && id < 6);
-                    boolean isTopTurn = (side == PlayerSide.TOP && id > 6 && id != 13);
+                    boolean isBottomTurn = (side == PlayerSide.BOTTOM && id < currentPitsPerPlayer);
+                    boolean isTopTurn = (side == PlayerSide.TOP && id > currentPitsPerPlayer && id != currentPitsPerPlayer * 2 + 1);
 
                     if (isBottomTurn || isTopTurn) {
                         btn.setDisable(false);

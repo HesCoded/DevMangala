@@ -12,7 +12,7 @@ public class DevMangala extends Application {
     @Override
     public void start(Stage stage) throws IOException {
         BoardView boardView = new BoardView();
-        BorderPane root = boardView.addBorderPane();
+        BorderPane root = boardView.addBorderPane(stage);
         Scene scene = new Scene(root, 800, 300);
 
         stage.setTitle("DevMangala");

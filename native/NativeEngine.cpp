@@ -3,68 +3,36 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
-#include <fstream>
-#include <unordered_map>
 #include <cstdint>
 #include <atomic>
 
 using namespace std;
 
-unordered_map<uint64_t, int8_t> tablebase;
-bool tablebase_loaded = false;
 std::atomic<bool> stopSearch(false);
-
-// We have 12 pits and 5 bits for every pits. 61th bit is for turn player, if turn player is top side, it is 1, else 0.
-uint64_t encode_tb(uint8_t pits[12], bool isTopPlayer) {
-    uint64_t key = 0;
-    for (int i = 0; i < 12; ++i) key |= ((uint64_t)pits[i] << (i * 5));
-    if (isTopPlayer) key |= (1ULL << 60);
-    return key;
-}
-
-void loadTablebase() {
-    if (tablebase_loaded) return;
-    ifstream infile("data/mangala_15stones.bin", ios::binary);
-    if (!infile) {
-        cout << "INFO: Tablebase file not found! Only the engine will be used for calculations." << endl;
-        return;
-    }
-    uint64_t size;
-    infile.read(reinterpret_cast<char*>(&size), sizeof(size));
-    for (uint64_t i = 0; i < size; ++i) {
-        uint64_t key;
-        int8_t val;
-        infile.read(reinterpret_cast<char*>(&key), sizeof(key));
-        infile.read(reinterpret_cast<char*>(&val), sizeof(val));
-        tablebase[key] = val;
-    }
-    infile.close();
-    tablebase_loaded = true;
-    cout << "--- Tablebase loaded: " << size << " positions were added to RAM ---" << endl;
-}
 
 // Killer move heuristic: stores best moves at each depth
 int killerMoves[64][2]; // [depth][0 or 1]
 long long nodeCount = 0;
 
-bool makeMove(uint8_t board[14], int index, bool isTopPlayer) {
+bool makeMove(vector<uint8_t>& board, int index, bool isTopPlayer, int pitsPerPlayer) {
     uint8_t stones = board[index];
     if (stones == 0) return false;
 
-    int ownStore = isTopPlayer ? 13 : 6;
-    int oppStore = isTopPlayer ? 6 : 13;
+    int boardSize = pitsPerPlayer * 2 + 2;
+    int ownStore = isTopPlayer ? boardSize - 1 : pitsPerPlayer;
+    int oppStore = isTopPlayer ? pitsPerPlayer : boardSize - 1;
 
     board[index] = 0;
     int curr = index;
 
     if (stones == 1) {
-        curr = (curr + 1) % 14;
+        curr = (curr + 1) % boardSize;
         board[curr]++;
     } else {
         board[index] = 1;
         stones--;
         while (stones > 0) {
-            curr = (curr + 1) % 14;
+            curr = (curr + 1) % boardSize;
             if (curr == oppStore) continue;
             board[curr]++;
             stones--;
@@ -73,15 +41,15 @@ bool makeMove(uint8_t board[14], int index, bool isTopPlayer) {
 
     if (curr == ownStore) return true;
 
-    bool isOppSide = isTopPlayer ? (curr >= 0 && curr <= 5) : (curr >= 7 && curr <= 12);
+    bool isOppSide = isTopPlayer ? (curr >= 0 && curr < pitsPerPlayer) : (curr > pitsPerPlayer && curr < boardSize - 1);
     if (isOppSide && board[curr] % 2 == 0) {
         board[ownStore] += board[curr];
         board[curr] = 0;
     }
 
-    bool isOwnSide = isTopPlayer ? (curr >= 7 && curr <= 12) : (curr >= 0 && curr <= 5);
+    bool isOwnSide = isTopPlayer ? (curr > pitsPerPlayer && curr < boardSize - 1) : (curr >= 0 && curr < pitsPerPlayer);
     if (isOwnSide && board[curr] == 1) {
-        int oppIndex = 12 - curr;
+        int oppIndex = (pitsPerPlayer * 2) - curr;
         if (board[oppIndex] > 0) {
             board[ownStore] += (board[curr] + board[oppIndex]);
             board[curr] = 0;
@@ -92,26 +60,34 @@ bool makeMove(uint8_t board[14], int index, bool isTopPlayer) {
     return false;
 }
 
-int checkGameState(uint8_t board[14]) {
+int checkGameState(const vector<uint8_t>& board, int pitsPerPlayer) {
+    int boardSize = pitsPerPlayer * 2 + 2;
+    int bottomStore = pitsPerPlayer;
+    int topStore = boardSize - 1;
+
     bool bottomEmpty = true;
-    for (int i = 0; i < 6; i++) { if (board[i] > 0) { bottomEmpty = false; break; } }
+    for (int i = 0; i < pitsPerPlayer; i++) { 
+        if (board[i] > 0) { bottomEmpty = false; break; } 
+    }
 
     if (bottomEmpty) {
-        int bScore = board[6];
-        int tScore = board[13];
-        for (int i = 7; i < 13; i++) tScore += board[i];
+        int bScore = board[bottomStore];
+        int tScore = board[topStore];
+        for (int i = pitsPerPlayer + 1; i < topStore; i++) tScore += board[i];
         if (bScore > tScore) return 1;
         if (tScore > bScore) return 2;
         return 3;
     }
 
     bool topEmpty = true;
-    for (int i = 7; i < 13; i++) { if (board[i] > 0) { topEmpty = false; break; } }
+    for (int i = pitsPerPlayer + 1; i < topStore; i++) { 
+        if (board[i] > 0) { topEmpty = false; break; } 
+    }
 
     if (topEmpty) {
-        int bScore = board[6];
-        int tScore = board[13];
-        for (int i = 0; i < 6; i++) bScore += board[i];
+        int bScore = board[bottomStore];
+        int tScore = board[topStore];
+        for (int i = 0; i < pitsPerPlayer; i++) bScore += board[i];
         if (bScore > tScore) return 1;
         if (tScore > bScore) return 2;
         return 3;
@@ -120,36 +96,46 @@ int checkGameState(uint8_t board[14]) {
     return 0;
 }
 
-int evaluate(uint8_t board[14], int gameState) {
-    int bScore = board[6];
-    int tScore = board[13];
+int evaluate(const vector<uint8_t>& board, int gameState, int pitsPerPlayer) {
+    int bottomStore = pitsPerPlayer;
+    int topStore = pitsPerPlayer * 2 + 1;
+    
+    int bScore = board[bottomStore];
+    int tScore = board[topStore];
 
     if (gameState != 0) {
         bool isBottomEmpty = true;
-        for (int i = 0; i < 6; i++) { if (board[i] > 0) { isBottomEmpty = false; break; } }
-        if (isBottomEmpty) { for (int i = 7; i < 13; i++) bScore += board[i]; }
-        else { for (int i = 0; i < 6; i++) tScore += board[i]; }
+        for (int i = 0; i < pitsPerPlayer; i++) { 
+            if (board[i] > 0) { isBottomEmpty = false; break; } 
+        }
+        
+        if (isBottomEmpty) { 
+            for (int i = pitsPerPlayer + 1; i < topStore; i++) bScore += board[i]; 
+        } else { 
+            for (int i = 0; i < pitsPerPlayer; i++) tScore += board[i]; 
+        }
 
-        int diff = bScore - tScore;
-        // if (gameState == 1) return 10000 + diff;
-        // if (gameState == 2) return -10000 + diff;
-        return diff;
+        return bScore - tScore;
     }
     return bScore - tScore;
 }
 
-void sortPits(const uint8_t board[14], int resultPits[6], bool isTopPlayer, int depth) {
-    int offset = isTopPlayer ? 7 : 0;
-    int scores[6];
-    for (int i = 0; i < 6; i++) {
+void sortPits(const vector<uint8_t>& board, vector<int>& resultPits, bool isTopPlayer, int depth, int pitsPerPlayer) {
+    int offset = isTopPlayer ? pitsPerPlayer + 1 : 0;
+    vector<int> scores(pitsPerPlayer);
+    
+    resultPits.resize(pitsPerPlayer);
+    
+    for (int i = 0; i < pitsPerPlayer; i++) {
         int idx = offset + i;
         resultPits[i] = idx;
         if (board[idx] == 0) scores[i] = -1000;
         else if (idx == killerMoves[depth][0] || idx == killerMoves[depth][1]) scores[i] = 5000;
         else scores[i] = board[idx];
     }
-    for (int i = 0; i < 5; i++) {
-        for (int j = i + 1; j < 6; j++) {
+    
+    for (int i = 0; i < pitsPerPlayer - 1; i++) {
+        for (int j = i + 1; j < pitsPerPlayer; j++) {
             if (scores[j] > scores[i]) {
                 swap(scores[i], scores[j]);
                 swap(resultPits[i], resultPits[j]);
@@ -158,47 +144,30 @@ void sortPits(const uint8_t board[14], int resultPits[6], bool isTopPlayer, int 
     }
 }
 
-int minimax(uint8_t board[14], int depth, bool isTopPlayer, int alpha, int beta) {
+int minimax(vector<uint8_t>& board, int depth, bool isTopPlayer, int alpha, int beta, int pitsPerPlayer) {
     if (stopSearch) {
-        cout << "INFO: Search stopped at depth " << depth << " due to stopSearch flag." << endl;
         return 0;
     } 
     
-    int state = checkGameState(board);
-    if (state != 0) return evaluate(board, state);
+    int state = checkGameState(board, pitsPerPlayer);
+    if (state != 0) return evaluate(board, state, pitsPerPlayer);
 
-    int active_stones = 48 - board[6] - board[13];
-    if (active_stones <= 15 && tablebase_loaded) {
-        uint8_t tb_pits[12];
-        for (int i = 0; i < 6; i++) {
-            tb_pits[i] = board[i];
-            tb_pits[i+6] = board[i+7];
-        }
-
-        uint64_t tb_key = encode_tb(tb_pits, isTopPlayer);
-        auto it = tablebase.find(tb_key);
-        if (it != tablebase.end()) {
-            return it->second;
-        }
-    }
-
-    if (depth <= 0) return evaluate(board, 0);
+    if (depth <= 0) return evaluate(board, 0, pitsPerPlayer);
 
     nodeCount++;
-    int sortedPits[6];
-    sortPits(board, sortedPits, isTopPlayer, depth);
+    vector<int> sortedPits;
+    sortPits(board, sortedPits, isTopPlayer, depth, pitsPerPlayer);
 
     if (!isTopPlayer) {
         int maxEval = -999999;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < pitsPerPlayer; i++) {
             int pit = sortedPits[i];
             if (board[pit] == 0) continue;
 
-            uint8_t nextBoard[14];
-            copy(board, board + 14, nextBoard);
-            bool extra = makeMove(nextBoard, pit, false);
+            vector<uint8_t> nextBoard = board;
+            bool extra = makeMove(nextBoard, pit, false, pitsPerPlayer);
 
-            int eval = minimax(nextBoard, depth - 1, extra ? false : true, alpha, beta);
+            int eval = minimax(nextBoard, depth - 1, extra ? false : true, alpha, beta, pitsPerPlayer);
             if (eval > maxEval) { maxEval = eval; }
             alpha = max(alpha, eval);
             if (beta <= alpha) {
@@ -212,15 +181,14 @@ int minimax(uint8_t board[14], int depth, bool isTopPlayer, int alpha, int beta)
         return maxEval;
     } else {
         int minEval = 999999;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < pitsPerPlayer; i++) {
             int pit = sortedPits[i];
             if (board[pit] == 0) continue;
 
-            uint8_t nextBoard[14];
-            copy(board, board + 14, nextBoard);
-            bool extra = makeMove(nextBoard, pit, true);
+            vector<uint8_t> nextBoard = board;
+            bool extra = makeMove(nextBoard, pit, true, pitsPerPlayer);
 
-            int eval = minimax(nextBoard, depth - 1, extra ? true : false, alpha, beta);
+            int eval = minimax(nextBoard, depth - 1, extra ? true : false, alpha, beta, pitsPerPlayer);
             if (eval < minEval) { minEval = eval; }
             beta = min(beta, eval);
             if (beta <= alpha) {
@@ -237,8 +205,6 @@ int minimax(uint8_t board[14], int depth, bool isTopPlayer, int alpha, int beta)
 
 extern "C" JNIEXPORT jintArray JNICALL
 Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject obj, jintArray jBoard, jint targetDepth, jboolean isTopPlayer) {
-    loadTablebase();
-
     for (int i = 0; i < 64; i++) {
         killerMoves[i][0] = -1;
         killerMoves[i][1] = -1;
@@ -246,13 +212,20 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
 
     nodeCount = 0;
 
+    jsize length = env->GetArrayLength(jBoard);
+    int boardSize = length;
+    int pitsPerPlayer = (boardSize - 2) / 2;
+
     jint *cBoard = env->GetIntArrayElements(jBoard, NULL);
-    uint8_t startBoard[14];
-    for (int i = 0; i < 14; i++) startBoard[i] = (uint8_t)cBoard[i];
+    vector<uint8_t> startBoard(boardSize);
+    for (int i = 0; i < boardSize; i++) {
+        startBoard[i] = (uint8_t)cBoard[i];
+    }
     env->ReleaseIntArrayElements(jBoard, cBoard, JNI_ABORT);
 
     int overallBestMove = -1;
     int finalBestScore = 0;
+    
     for (int d = 1; d <= targetDepth; d++) {
         auto start = chrono::high_resolution_clock::now();
         int bestScore = isTopPlayer ? 999999 : -999999;
@@ -260,15 +233,15 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
 
         int alpha = -999999;
         int beta = 999999;
-        for (int i = 0; i < 6; i++) {
-            int pit = (isTopPlayer ? 7 : 0) + i;
+        
+        for (int i = 0; i < pitsPerPlayer; i++) {
+            int pit = (isTopPlayer ? pitsPerPlayer + 1 : 0) + i;
             if (startBoard[pit] == 0) continue;
 
-            uint8_t nextBoard[14];
-            copy(startBoard, startBoard + 14, nextBoard);
-            bool extra = makeMove(nextBoard, pit, isTopPlayer);
+            vector<uint8_t> nextBoard = startBoard;
+            bool extra = makeMove(nextBoard, pit, isTopPlayer, pitsPerPlayer);
 
-            int score = minimax(nextBoard, d - 1, extra ? isTopPlayer : !isTopPlayer, alpha, beta);
+            int score = minimax(nextBoard, d - 1, extra ? isTopPlayer : !isTopPlayer, alpha, beta, pitsPerPlayer);
 
             if (isTopPlayer) {
                 if (score < bestScore) { bestScore = score; moveThisDepth = pit; }
@@ -278,6 +251,7 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
                 alpha = max(alpha, bestScore);
             }
         }
+        
         overallBestMove = moveThisDepth;
         finalBestScore = bestScore;
         auto end = chrono::high_resolution_clock::now();
@@ -285,6 +259,7 @@ Java_me_hescoded_devmangala_game_NativeEngine_findBestMove(JNIEnv *env, jobject 
              << " | Nodes: " << nodeCount << " | Time: " << chrono::duration<double>(end-start).count() << "s"
              << endl;
     }
+    
     jintArray result = env->NewIntArray(2);
     jint elements[2] = { overallBestMove, finalBestScore };
     env->SetIntArrayRegion(result, 0, 2, elements);
